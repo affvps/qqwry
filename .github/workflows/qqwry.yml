@@ -51,7 +51,7 @@ jobs:
           link=${{ env.LINK }}
           mkdir -p Downloads
           cd Downloads
-          wget $link
+          wget --no-check-certificate --user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36" $link
 
       - name: Cache innoextract
         uses: actions/cache@v3
@@ -89,7 +89,7 @@ jobs:
       - name: Calculate file hash value
         id: calculate_hash_value
         run: |
-          echo "hash=$(sha256sum app/qqwry.dat | awk '{ print $1 }')" >> $GITHUB_ENV
+          echo "FILE_HASH=$(sha256sum app/qqwry.dat | awk '{ print $1 }')" >> $GITHUB_ENV
       
       - name: Create Release
         id: create_release
@@ -106,9 +106,14 @@ jobs:
            | Name               | Value                      |
            | :----------------: | :------------------------: |
            | Zip Download link: | ${{ env.LINK }}            |
-           | File hash:         | qqwry.dat: ${{ env.hash }} |
+           | File hash:         | qqwry.dat: ${{ env.FILE_HASH }} |
 
            <p align="right"><code>Version: ${{ env.dat_date }} </code></p>
+
+      - name: Calculate repository hash value
+        id: calculate_repo_hash_value
+        run: |
+          echo "REPO_HASH=$(git show main:qqwry.dat | sha256sum | awk '{ print $1 }')" >> $GITHUB_ENV
 
       - name: Check for changes in qqwry.dat
         id: check
@@ -117,11 +122,12 @@ jobs:
             echo "File does not exist"
             echo "RUN_NEXT_STEP=true" >> $GITHUB_ENV
           else
-            LAST_COMMIT=$(git log --all --format=format:%H --follow qqwry.dat | head -1)
-            CURRENT_COMMIT=$(git rev-parse HEAD)
-            if [ "$LAST_COMMIT" != "$CURRENT_COMMIT" ]; then
+            #比较上面的两个hash值是否相等
+            if [ "${{ env.FILE_HASH }}" != "${{ env.REPO_HASH }}" ]; then
               echo "File has changed"
               echo "RUN_NEXT_STEP=true" >> $GITHUB_ENV
+            else
+              echo "File has not changed"
             fi
           fi
 
